@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<title>Würfelnetze – Falten in 3D</title>
+<style>
+  :root{
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI Variable","Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
+    --bg:#f5f5f7;
+    --ink:#1d1d1f; --ink2:#3a3a3c; --muted:#6e6e73;
+    --blue:#007AFF; --blue-press:#0062cc; --green:#34C759; --orange:#FF9500; --red:#FF3B30; --yellow:#FFCC00;
+    --glass:rgba(255,255,255,.62); --glass-strong:rgba(255,255,255,.78);
+    --glass-border:rgba(255,255,255,.75); --hair:rgba(0,0,0,.07);
+    --shadow:0 1px 1px rgba(0,0,0,.02), 0 8px 24px rgba(17,24,39,.06), 0 24px 60px rgba(17,24,39,.06);
+    --seg-bg:rgba(118,118,128,.12); --seg-sel:#fff; --seg-shadow:0 3px 8px rgba(0,0,0,.12), 0 3px 1px rgba(0,0,0,.04);
+    --fill2:rgba(0,122,255,.10); --fill2-press:rgba(0,122,255,.18);
+    --track:rgba(120,120,128,.2);
+    --stage:linear-gradient(180deg,rgba(255,255,255,.85),rgba(242,244,250,.7));
+    --okbg:rgba(52,199,89,.13); --okink:#1b7a35; --badbg:rgba(255,149,0,.14); --badink:#9a4f00;
+    --tile:rgba(255,255,255,.55);
+    --r-card:26px; --r-inner:20px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#000;
+      --ink:#f5f5f7; --ink2:#d1d1d6; --muted:#98989d;
+      --blue:#0A84FF; --blue-press:#409cff; --green:#30D158; --orange:#FF9F0A; --red:#FF453A;
+      --glass:rgba(44,44,46,.55); --glass-strong:rgba(58,58,60,.7);
+      --glass-border:rgba(255,255,255,.10); --hair:rgba(255,255,255,.08);
+      --shadow:0 8px 30px rgba(0,0,0,.45);
+      --seg-bg:rgba(118,118,128,.24); --seg-sel:#636366; --seg-shadow:0 3px 8px rgba(0,0,0,.3);
+      --fill2:rgba(10,132,255,.18); --fill2-press:rgba(10,132,255,.28);
+      --track:rgba(120,120,128,.36);
+      --stage:linear-gradient(180deg,rgba(58,58,60,.55),rgba(28,28,30,.6));
+      --okbg:rgba(48,209,88,.16); --okink:#7ee39b; --badbg:rgba(255,159,10,.16); --badink:#ffc266;
+      --tile:rgba(255,255,255,.05);
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:var(--font); color:var(--ink); background-color:var(--bg);
+    background-image:
+      radial-gradient(900px 600px at 8% -10%, rgba(0,122,255,.10), transparent 60%),
+      radial-gradient(800px 600px at 105% 10%, rgba(175,82,222,.08), transparent 60%),
+      radial-gradient(900px 700px at 50% 115%, rgba(52,199,89,.07), transparent 60%);
+    background-attachment:fixed;
+    min-height:100vh; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    -webkit-tap-highlight-color:transparent; letter-spacing:-.01em;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
+  :focus-visible{outline:3px solid color-mix(in srgb, var(--blue) 55%, transparent);outline-offset:2px}
+
+  /* ---------- Glas ---------- */
+  .glass,.card{
+    background:var(--glass);
+    -webkit-backdrop-filter:saturate(180%) blur(28px); backdrop-filter:saturate(180%) blur(28px);
+    border:1px solid var(--glass-border);
+    box-shadow:var(--shadow), inset 0 1px 0 rgba(255,255,255,.55);
+  }
+  @media (prefers-color-scheme: dark){ .glass,.card{box-shadow:var(--shadow), inset 0 1px 0 rgba(255,255,255,.06)} }
+
+  /* ---------- Kopf ---------- */
+  header{max-width:1200px;margin:0 auto;padding:22px 24px 10px;display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:14px;min-width:0}
+  .brand svg{width:50px;height:50px;flex:none;filter:drop-shadow(0 6px 12px rgba(0,0,0,.12))}
+  h1{text-wrap:balance;font-size:clamp(1.55rem,3.4vw,2.35rem);margin:0;font-weight:800;letter-spacing:-.03em;line-height:1.08}
+  .sub{margin:4px 0 0;color:var(--muted);font-size:1rem;font-weight:500;letter-spacing:-.01em}
+  .head-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+  /* ---------- Segmented Control (iOS) ---------- */
+  nav.tabs,.lang{display:inline-flex;align-items:stretch;background:var(--seg-bg);padding:3px;border-radius:12px;gap:2px;
+    -webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+  nav.tabs button,.lang button{border:0;background:transparent;border-radius:9px;padding:8px 18px;font-weight:600;font-size:.95rem;cursor:pointer;color:var(--ink);
+    white-space:nowrap;transition:background-color .25s ease, box-shadow .25s ease, transform .15s ease;touch-action:manipulation}
+  nav.tabs button[aria-selected="true"],.lang button[aria-pressed="true"]{background:var(--seg-sel);box-shadow:var(--seg-shadow);font-weight:700}
+  nav.tabs button:active,.lang button:active{transform:scale(.96)}
+  .lang button{min-width:46px;padding:8px 12px;letter-spacing:.02em}
+  .lang .sep{display:none}
+
+  /* ---------- Layout ---------- */
+  main{max-width:1200px;margin:0 auto;padding:12px 24px 34px}
+  .card{border-radius:var(--r-card);padding:20px}
+  .explore{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:22px;align-items:start}
+  @media (max-width:880px){.explore{grid-template-columns:1fr}}
+  section:not([hidden]){animation:fadeUp .45s cubic-bezier(.2,.8,.2,1)}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .stage-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 2px 14px}
+  h2{margin:0;font-size:1.5rem;font-weight:800;letter-spacing:-.025em;line-height:1.15}
+  .badge{background:var(--fill2);color:var(--blue);font-weight:700;padding:5px 12px;border-radius:999px;font-size:.85rem;white-space:nowrap}
+
+  .stage{position:relative;width:100%;height:min(58vh,520px);min-height:300px;border-radius:var(--r-inner);overflow:hidden;
+    background:var(--stage);border:1px solid var(--hair)}
+  .stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab;-webkit-user-select:none;user-select:none}
+  .stage canvas.dragging{cursor:grabbing}
+  .hint{position:absolute;left:12px;bottom:12px;background:var(--glass-strong);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+    border:1px solid var(--glass-border);border-radius:999px;padding:6px 12px;font-size:.82rem;font-weight:600;color:var(--muted);pointer-events:none}
+
+  /* ---------- Bedienelemente ---------- */
+  .controls{margin-top:18px;display:flex;flex-direction:column;gap:16px}
+  .slider-row{display:flex;align-items:center;gap:14px}
+  .slider-row label{font-weight:700;min-width:56px;white-space:nowrap}
+  .slider-row output{font-weight:700;min-width:58px;text-align:right;font-variant-numeric:tabular-nums;color:var(--blue)}
+  input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:6px;border-radius:999px;margin:0;outline-offset:8px;
+    background:linear-gradient(90deg,var(--blue) var(--p,0%),var(--track) var(--p,0%));cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;border-radius:50%;background:#fff;border:0;
+    box-shadow:0 0.5px 4px rgba(0,0,0,.12),0 6px 13px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.04);transition:transform .15s}
+  input[type=range]:active::-webkit-slider-thumb{transform:scale(1.1)}
+  input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:#fff;border:0;box-shadow:0 0.5px 4px rgba(0,0,0,.12),0 6px 13px rgba(0,0,0,.12)}
+
+  .btnrow{display:flex;flex-wrap:wrap;gap:10px}
+  .btn{border:0;border-radius:999px;padding:12px 20px;font-weight:600;font-size:1rem;cursor:pointer;background:var(--fill2);color:var(--blue);
+    white-space:nowrap;transition:transform .15s cubic-bezier(.3,.7,.4,1.5), background-color .2s, opacity .2s;touch-action:manipulation}
+  .btn:hover{background:var(--fill2-press)}
+  .btn:active{transform:scale(.95)}
+  .btn.primary{background:var(--blue);color:#fff;box-shadow:0 6px 16px color-mix(in srgb, var(--blue) 30%, transparent)}
+  .btn.primary:hover{background:var(--blue-press)}
+  .btn:disabled{opacity:.4;cursor:default;transform:none}
+
+  .toggle-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between}
+  .switch{display:inline-flex;align-items:center;gap:12px;font-weight:600;cursor:pointer;user-select:none;-webkit-user-select:none}
+  .switch input{position:absolute;opacity:0;width:1px;height:1px}
+  .switch .knob{width:51px;height:31px;border-radius:999px;background:var(--track);position:relative;transition:background-color .25s ease;flex:none}
+  .switch .knob::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;
+    box-shadow:0 3px 8px rgba(0,0,0,.15),0 3px 1px rgba(0,0,0,.06);transition:transform .3s cubic-bezier(.3,.7,.4,1.2)}
+  .switch input:checked + .knob{background:var(--green)}
+  .switch input:checked + .knob::after{transform:translateX(20px)}
+  .switch input:focus-visible + .knob{outline:3px solid color-mix(in srgb, var(--blue) 55%, transparent);outline-offset:2px}
+
+  .info{min-height:1.5em;margin:0;color:var(--ink2);font-size:1rem;line-height:1.5}
+  .dot{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin:0 4px 0 1px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.12)}
+
+  /* ---------- Kacheln ---------- */
+  .tiles-card h2{margin:2px 2px 4px}
+  .tiles-card p{margin:0 2px 16px;color:var(--muted);font-size:.95rem}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:10px}
+  .tile{border:0;background:var(--tile);border-radius:18px;padding:10px 6px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;
+    box-shadow:inset 0 0 0 1px var(--hair);transition:transform .15s cubic-bezier(.3,.7,.4,1.5), box-shadow .2s, background-color .2s;touch-action:manipulation}
+  .tile:hover{transform:translateY(-2px)}
+  .tile:active{transform:scale(.95)}
+  .tile[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--blue), 0 6px 18px color-mix(in srgb, var(--blue) 18%, transparent);background:var(--glass-strong)}
+  .mini{display:grid;gap:2px;--c:13px;height:64px;align-content:center;justify-content:center}
+  .mini i{display:block;width:var(--c);height:var(--c);border-radius:3.5px;box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+  .tile b{font-size:.92rem;font-weight:700;white-space:nowrap}
+  .tile small{color:var(--muted);font-weight:600;font-size:.74rem;margin-top:-4px;font-variant-numeric:tabular-nums}
+  .legend{margin:16px 2px 0;font-size:.86rem;color:var(--muted);line-height:1.55}
+  .legend b{color:var(--ink2)}
+
+  /* ---------- Quiz & Gegenüber ---------- */
+  .quiz-wrap{max-width:820px;margin:0 auto}
+  .quiz-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:2px 2px 8px}
+  .score{display:flex;gap:8px;flex-wrap:wrap}
+  .pill{background:rgba(255,204,0,.2);color:#8a6100;font-weight:700;border-radius:999px;padding:6px 14px;font-variant-numeric:tabular-nums;font-size:.92rem;white-space:nowrap}
+  .pill.streak{background:rgba(255,59,48,.12);color:#c4271e}
+  @media (prefers-color-scheme: dark){ .pill{color:#ffd60a;background:rgba(255,214,10,.16)} .pill.streak{color:#ff6961;background:rgba(255,69,58,.18)} }
+  .task{margin:0 2px 14px;font-size:1.05rem;color:var(--ink2);line-height:1.45}
+  .answer-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+  .big{border:0;border-radius:999px;padding:16px 12px;font-size:1.12rem;font-weight:700;cursor:pointer;color:#fff;touch-action:manipulation;
+    transition:transform .15s cubic-bezier(.3,.7,.4,1.5), opacity .25s, box-shadow .25s}
+  .big:active{transform:scale(.96)}
+  .big.yes{background:var(--green);box-shadow:0 8px 20px rgba(52,199,89,.28)}
+  .big.no{background:var(--orange);box-shadow:0 8px 20px rgba(255,149,0,.28)}
+  .big:disabled{opacity:.35;cursor:default;transform:none;box-shadow:none}
+  .big.chosen{opacity:1;box-shadow:0 0 0 3px var(--bg),0 0 0 6px currentColor}
+  .big.yes.chosen{color:#fff;box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--green)}
+  .big.no.chosen{color:#fff;box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--orange)}
+  .feedback{margin-top:16px;border-radius:20px;padding:14px 18px;font-size:1.02rem;line-height:1.5}
+  .feedback.ok{background:var(--okbg);color:var(--okink)}
+  .feedback.bad{background:var(--badbg);color:var(--badink)}
+  .feedback strong{font-size:1.2rem;font-weight:800;display:block;margin-bottom:2px;letter-spacing:-.02em}
+  .next-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;justify-content:flex-end}
+  @keyframes pop{0%{transform:scale(.96);opacity:0}100%{transform:scale(1);opacity:1}}
+  .pop{animation:pop .35s cubic-bezier(.2,.8,.2,1)}
+  footer{max-width:1200px;margin:0 auto;padding:0 24px 28px;color:var(--muted);font-size:.85rem;text-align:center}
+  @media (prefers-reduced-motion: reduce){ *{animation:none !important;transition:none !important} }
+
+  /* ---------- iPhone ---------- */
+  @media (max-width:560px){
+    header{display:grid;grid-template-columns:1fr auto;align-items:center;padding:14px 14px 6px;gap:12px}
+    .head-right{display:contents}
+    .lang{grid-column:2;grid-row:1;align-self:start}
+    nav.tabs{grid-column:1 / -1;grid-row:2;width:100%}
+    nav.tabs button{flex:1;padding:8px 6px;font-size:.92rem}
+    .lang button{padding:7px 9px;min-width:40px;font-size:.88rem}
+    .brand{gap:10px}
+    .brand svg{width:40px;height:40px}
+    h1{font-size:1.45rem}
+    .sub{font-size:.88rem}
+    main{padding:8px 12px 26px}
+    .card{padding:14px;border-radius:24px}
+    h2{font-size:1.3rem}
+    .stage{height:min(52vh,420px);min-height:270px;border-radius:18px}
+    .btn{padding:11px 14px;font-size:.95rem;flex:1 1 auto}
+    .big{font-size:1rem;padding:14px 8px}
+    .tiles{grid-template-columns:repeat(auto-fill,minmax(86px,1fr))}
+  }
+  [hidden]{display:none !important}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 48 48" aria-hidden="true">
+      <polygon points="24,4 43,14 24,24 5,14" fill="#FFCC00"/>
+      <polygon points="5,14 24,24 24,45 5,35" fill="#007AFF"/>
+      <polygon points="43,14 24,24 24,45 43,35" fill="#FF3B30"/>
+      <circle cx="24" cy="14" r="2.6" fill="#fff"/>
+      <circle cx="10" cy="22" r="2.3" fill="#fff"/><circle cx="19" cy="37" r="2.3" fill="#fff"/>
+      <circle cx="29" cy="28" r="2.3" fill="#fff"/><circle cx="38" cy="22" r="2.3" fill="#fff"/><circle cx="29" cy="38" r="2.3" fill="#fff"/><circle cx="38" cy="32" r="2.3" fill="#fff"/>
+    </svg>
+    <div>
+      <h1 data-i18n="title">Würfelnetze – Falten in 3D</h1>
+      <p class="sub" data-i18n="subtitle">Klapp die Netze zusammen und entdecke den Würfel!</p>
+    </div>
+  </div>
+  <div class="head-right">
+    <nav class="tabs" role="tablist" data-i18n-aria="tabsAria" aria-label="Bereiche">
+      <button role="tab" id="tab-entdecken" aria-selected="true" data-view="entdecken" data-i18n="tabExplore">Entdecken</button>
+      <button role="tab" id="tab-quiz" aria-selected="false" data-view="quiz" data-i18n="tabQuiz">Quiz</button>
+      <button role="tab" id="tab-gegen" aria-selected="false" data-view="gegen" data-i18n="tabOpp">Gegenüber</button>
+    </nav>
+    <div class="lang" role="group" aria-label="Sprache / Language">
+      <button type="button" id="langDe" data-lang="de" aria-pressed="true" aria-label="Deutsch">DE</button>
+      <span class="sep" aria-hidden="true">|</span>
+      <button type="button" id="langEn" data-lang="en" aria-pressed="false" aria-label="English">EN</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- ===== Entdecken ===== -->
+  <section id="view-entdecken" class="explore" role="tabpanel" aria-labelledby="tab-entdecken">
+    <div class="card">
+      <div class="stage-head">
+        <h2 id="netTitle">Würfelnetz 1</h2>
+        <span class="badge" id="netType">Typ 1-4-1</span>
+      </div>
+      <div class="stage">
+        <canvas id="cvExplore" data-i18n-aria="cvExploreAria" aria-label="3D-Ansicht des Würfelnetzes"></canvas>
+        <div class="hint" data-i18n="dragHint">Ziehen zum Drehen</div>
+      </div>
+      <div class="controls">
+        <div class="slider-row">
+          <label for="fold" data-i18n="foldLabel">Falten</label>
+          <input type="range" id="fold" min="0" max="100" step="1" value="0">
+          <output id="foldOut" for="fold">0 %</output>
+        </div>
+        <div class="btnrow">
+          <button class="btn primary" id="bFold" data-i18n="btnFold">Falten ▶</button>
+          <button class="btn" id="bUnfold" data-i18n="btnUnfold">Aufklappen</button>
+          <button class="btn" id="bStep" data-i18n="btnStep">Schritt für Schritt</button>
+        </div>
+        <div class="toggle-row">
+          <label class="switch"><input type="checkbox" id="tPips"><span class="knob"></span><span data-i18n="pips">Augenzahlen</span></label>
+          <button class="btn" id="bView" data-i18n="btnView">Ansicht zurücksetzen</button>
+        </div>
+        <p class="info" id="stepInfo" aria-live="polite"></p>
+      </div>
+    </div>
+    <div class="card tiles-card">
+      <h2 data-i18n="tilesTitle">Alle 11 Würfelnetze</h2>
+      <p data-i18n="tilesSub">Tippe auf ein Netz, um es in 3D zu falten.</p>
+      <div class="tiles" id="tiles"></div>
+      <div class="legend" data-i18n-html="legend"></div>
+    </div>
+  </section>
+
+  <!-- ===== Quiz ===== -->
+  <section id="view-quiz" class="quiz-wrap" role="tabpanel" aria-labelledby="tab-quiz" hidden>
+    <div class="card">
+      <div class="quiz-top">
+        <h2 data-i18n="quizTitle">Ist das ein Würfelnetz?</h2>
+        <div class="score"><span class="pill" id="qScore"></span><span class="pill streak" id="qStreak" hidden></span></div>
+      </div>
+      <p class="task" data-i18n="quizTask">Schau genau hin: Kann man diese 6 Quadrate zu einem Würfel falten?</p>
+      <div class="stage"><canvas id="cvQuiz" data-i18n-aria="cvQuizAria" aria-label="Quiz-Netz"></canvas><div class="hint" data-i18n="dragHint">Ziehen zum Drehen</div></div>
+      <div class="answer-row">
+        <button class="big yes" id="qYes" data-i18n="quizYes">✔ Ist ein Würfelnetz</button>
+        <button class="big no" id="qNo" data-i18n="quizNo">✘ Kein Würfelnetz</button>
+      </div>
+      <div class="feedback" id="qFb" aria-live="polite" hidden></div>
+      <div class="next-row">
+        <button class="btn" id="qAgain" data-i18n="foldAgain" hidden>Nochmal falten</button>
+        <button class="btn primary" id="qNext" data-i18n="quizNext" hidden>Nächstes Netz →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Gegenüber ===== -->
+  <section id="view-gegen" class="quiz-wrap" role="tabpanel" aria-labelledby="tab-gegen" hidden>
+    <div class="card">
+      <div class="quiz-top">
+        <h2 data-i18n="oppTitle">Welche Fläche liegt gegenüber?</h2>
+        <div class="score"><span class="pill" id="oScore"></span><span class="pill streak" id="oStreak" hidden></span></div>
+      </div>
+      <p class="task" data-i18n-html="oppTask"></p>
+      <div class="stage"><canvas id="cvOpp" data-i18n-aria="cvOppAria" aria-label="Netz für die Gegenüber-Aufgabe"></canvas><div class="hint" id="oHintBadge"></div></div>
+      <div class="feedback" id="oFb" aria-live="polite" hidden></div>
+      <div class="next-row">
+        <button class="btn" id="oTip" data-i18n="tip">Tipp</button>
+        <button class="btn" id="oAgain" data-i18n="foldAgain" hidden>Nochmal falten</button>
+        <button class="btn primary" id="oNext" data-i18n="oppNext" hidden>Nächste Aufgabe →</button>
+      </div>
+    </div>
+  </section>
+</main>
+<footer data-i18n="footer">Ein Würfel hat 6 Flächen – und es gibt genau 11 verschiedene Würfelnetze.</footer>
+
+<script>
+'use strict';
+/* ================= Grunddaten ================= */
+const COLORS = ['#FF3B30', '#007AFF', '#FFCC00', '#34C759', '#FF9500', '#AF52DE'];
+const CANVAS_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif';
+const DARK = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : { matches: false };
+const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const HALF_PI = Math.PI / 2;
+
+// Übliche Nummerierung: 1–6 Typ 1-4-1, 7–9 Typ 2-3-1, 10 Typ 2-2-2, 11 Typ 3-3
+const NETS = [
+  { type: '1-4-1', cells: [[0,0],[0,1],[1,1],[2,1],[3,1],[0,2]] },
+  { type: '1-4-1', cells: [[0,0],[0,1],[1,1],[2,1],[3,1],[1,2]] },
+  { type: '1-4-1', cells: [[0,0],[0,1],[1,1],[2,1],[3,1],[2,2]] },
+  { type: '1-4-1', cells: [[0,0],[0,1],[1,1],[2,1],[3,1],[3,2]] },
+  { type: '1-4-1', cells: [[1,0],[0,1],[1,1],[2,1],[3,1],[1,2]] },
+  { type: '1-4-1', cells: [[1,0],[0,1],[1,1],[2,1],[3,1],[2,2]] },
+  { type: '2-3-1', cells: [[0,0],[1,0],[1,1],[2,1],[3,1],[1,2]] },
+  { type: '2-3-1', cells: [[0,0],[1,0],[1,1],[2,1],[3,1],[2,2]] },
+  { type: '2-3-1', cells: [[0,0],[1,0],[1,1],[2,1],[3,1],[3,2]] },
+  { type: '2-2-2', cells: [[0,0],[1,0],[1,1],[2,1],[2,2],[3,2]] },
+  { type: '3-3',   cells: [[0,0],[1,0],[2,0],[2,1],[3,1],[4,1]] }
+];
+
+/* ================= Geometrie: Polyominos ================= */
+const SYMS = [[1,0,0,1],[-1,0,0,1],[1,0,0,-1],[-1,0,0,-1],[0,1,1,0],[0,-1,1,0],[0,1,-1,0],[0,-1,-1,0]];
+function normalize(cells) {
+  let mx = Infinity, my = Infinity;
+  for (const [x, y] of cells) { mx = Math.min(mx, x); my = Math.min(my, y); }
+  return cells.map(([x, y]) => [x - mx, y - my]);
+}
+function transform(cells, s) { return normalize(cells.map(([x, y]) => [s[0]*x + s[1]*y, s[2]*x + s[3]*y])); }
+function keyOf(cells) { return cells.slice().sort((a, b) => a[1] - b[1] || a[0] - b[0]).map(c => c[0] + ',' + c[1]).join(';'); }
+function canon(cells) { let best = null; for (const s of SYMS) { const k = keyOf(transform(cells, s)); if (best === null || k < best) best = k; } return best; }
+function bbox(cells) { let w = 0, h = 0; for (const [x, y] of cells) { w = Math.max(w, x + 1); h = Math.max(h, y + 1); } return { w, h }; }
+
+function enumeratePolyominoes(n) {
+  let level = new Map([[canon([[0,0]]), [[0,0]]]]);
+  for (let k = 2; k <= n; k++) {
+    const next = new Map();
+    for (const cells of level.values()) {
+      const set = new Set(cells.map(c => c[0] + ',' + c[1]));
+      for (const [x, y] of cells) for (const [dx, dy] of DIRS) {
+        const nx = x + dx, ny = y + dy;
+        if (set.has(nx + ',' + ny)) continue;
+        const nc = normalize([...cells, [nx, ny]]);
+        const cs = canon(nc);
+        if (!next.has(cs)) next.set(cs, nc);
+      }
+    }
+    level = next;
+  }
+  return [...level.values()];
+}
+
+/* ================= 3D-Mathematik (affine 3x4-Matrizen) ================= */
+function M(r, t) { return { r, t }; }
+function apR(r, p) { return [r[0]*p[0] + r[1]*p[1] + r[2]*p[2], r[3]*p[0] + r[4]*p[1] + r[5]*p[2], r[6]*p[0] + r[7]*p[1] + r[8]*p[2]]; }
+function ap(A, p) { const q = apR(A.r, p); return [q[0] + A.t[0], q[1] + A.t[1], q[2] + A.t[2]]; }
+function mul(A, B) {
+  const a = A.r, b = B.r, r = new Array(9);
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) r[i*3 + j] = a[i*3]*b[j] + a[i*3 + 1]*b[3 + j] + a[i*3 + 2]*b[6 + j];
+  const t = apR(a, B.t);
+  return M(r, [t[0] + A.t[0], t[1] + A.t[1], t[2] + A.t[2]]);
+}
+function T(x, y, z) { return M([1,0,0, 0,1,0, 0,0,1], [x, y, z]); }
+function Rot(ax, ay, az, th) {
+  const c = Math.cos(th), s = Math.sin(th), C = 1 - c;
+  return M([c + ax*ax*C, ax*ay*C - az*s, ax*az*C + ay*s,
+            ay*ax*C + az*s, c + ay*ay*C, ay*az*C - ax*s,
+            az*ax*C - ay*s, az*ay*C + ax*s, c + az*az*C], [0, 0, 0]);
+}
+/* Lokale Transformation einer Kindfläche relativ zur Elternfläche:
+   Kind liegt im Netz bei (dx,dy) neben der Elternfläche. Es dreht sich um die
+   gemeinsame Kante (Scharnier) um den Winkel th, nach "hinten" (+z). */
+function hingeLocal(dx, dy, th) {
+  const hx = dx === 1 ? 1 : 0, hy = dy === 1 ? 1 : 0;
+  return mul(mul(mul(T(hx, hy, 0), Rot(dy, -dx, 0, th)), T(-hx, -hy, 0)), T(dx, dy, 0));
+}
+
+/* ================= Netz als Baum ================= */
+function buildTree(cells) {
+  const n = cells.length;
+  const idx = new Map(cells.map((c, i) => [c[0] + ',' + c[1], i]));
+  const nb = i => { const [x, y] = cells[i]; const r = [];
+    for (const [dx, dy] of DIRS) { const j = idx.get((x + dx) + ',' + (y + dy)); if (j !== undefined) r.push([j, dx, dy]); } return r; };
+  const bfs = root => {
+    const dist = Array(n).fill(-1), par = Array(n).fill(-1), dir = Array(n).fill(null), order = [root];
+    dist[root] = 0;
+    for (let k = 0; k < order.length; k++) { const i = order[k];
+      for (const [j, dx, dy] of nb(i)) if (dist[j] < 0) { dist[j] = dist[i] + 1; par[j] = i; dir[j] = [dx, dy]; order.push(j); } }
+    return { dist, par, dir, order };
+  };
+  let best = null;
+  for (let r = 0; r < n; r++) {
+    const b = bfs(r);
+    if (b.order.length !== n) return null; // nicht zusammenhängend
+    const score = Math.max(...b.dist) * 100 + b.dist.reduce((a, c) => a + c, 0);
+    if (!best || score < best.score) best = Object.assign(b, { root: r, score });
+  }
+  const adj = cells.map((_, i) => nb(i).map(e => e[0]));
+  return Object.assign(best, { cells, n, adj });
+}
+// Verschachtelte Transformationen: Welt(Kind) = Welt(Eltern) · Lokal(Kind)
+function worldMats(tree, angles) {
+  const W = new Array(tree.n);
+  const [rx, ry] = tree.cells[tree.root];
+  W[tree.root] = T(rx, ry, 0);
+  for (let k = 1; k < tree.order.length; k++) {
+    const i = tree.order[k], [dx, dy] = tree.dir[i];
+    W[i] = mul(W[tree.par[i]], hingeLocal(dx, dy, angles[i]));
+  }
+  return W;
+}
+// Ordnet die Flächen bei gegebenen Winkeln den Würfelseiten zu
+function facePositions(tree, angles) {
+  const W = worldMats(tree, angles);
+  const [rx, ry] = tree.cells[tree.root];
+  const C = [rx + 0.5, ry + 0.5, 0.5];             // Würfelmitte
+  let ok = true; const pos = []; const groups = new Map(); let maxErr = 0;
+  for (let i = 0; i < tree.n; i++) {
+    const c = ap(W[i], [0.5, 0.5, 0]);
+    const raw = [c[0] - C[0], c[1] - C[1], c[2] - C[2]];
+    const d = raw.map(v => Math.round(v * 2) / 2 + 0);
+    const err = Math.hypot(raw[0] - d[0], raw[1] - d[1], raw[2] - d[2]);
+    const nz = d.filter(v => v !== 0);
+    const nrm = apR(W[i].r, [0, 0, 1]);           // Innen-Normale
+    const nErr = Math.hypot(nrm[0] + 2*d[0], nrm[1] + 2*d[1], nrm[2] + 2*d[2]);
+    maxErr = Math.max(maxErr, err, nErr);
+    if (nz.length !== 1 || Math.abs(Math.abs(nz[0]) - 0.5) > 1e-9 || err > 1e-6 || nErr > 1e-6) ok = false;
+    const key = d.map(v => v > 0 ? '+' : v < 0 ? '-' : '0').join('');
+    pos.push(key);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(i);
+  }
+  const collisions = [...groups.values()].filter(g => g.length > 1);
+  if (groups.size !== 6) ok = false;
+  return { ok, pos, collisions, maxErr };
+}
+function analyzeFold(tree) { return facePositions(tree, Array(tree.n).fill(HALF_PI)); }
+function oppositeKey(k) { return k.split('').map(ch => ch === '+' ? '-' : ch === '-' ? '+' : '0').join(''); }
+
+/* ================= Prüfung beim Start ================= */
+const NET_CANON = NETS.map(n => canon(n.cells));
+const ALL_HEX = enumeratePolyominoes(6);
+const HEX_INFO = ALL_HEX.map(cells => ({ cells, canon: canon(cells), fold: analyzeFold(buildTree(cells)) }));
+const NON_NETS = HEX_INFO.filter(h => !h.fold.ok).map(h => h.cells);
+function verifyAll() {
+  const perNet = NETS.map((n, i) => { const tr = buildTree(n.cells); const f = analyzeFold(tr);
+    return { nr: i + 1, type: n.type, ok: f.ok, positions: f.pos, maxErr: f.maxErr, collisions: f.collisions.length }; });
+  const foldableHex = HEX_INFO.filter(h => h.fold.ok);
+  const foldSet = new Set(foldableHex.map(h => h.canon));
+  return {
+    nets: NETS.length,
+    distinctUnderRotationAndMirror: new Set(NET_CANON).size,
+    allNetsFold: perNet.every(p => p.ok),
+    perNet,
+    hexominoesTotal: ALL_HEX.length,
+    hexominoesFoldable: foldableHex.length,
+    netsEqualAllFoldableHexominoes: foldSet.size === 11 && NET_CANON.every(c => foldSet.has(c)),
+    nonNets: NON_NETS.length,
+    nonNetsAllCollide: HEX_INFO.filter(h => !h.fold.ok).every(h => h.fold.collisions.length > 0)
+  };
+}
+const VERIFY = verifyAll();
+if (!(VERIFY.distinctUnderRotationAndMirror === 11 && VERIFY.allNetsFold && VERIFY.netsEqualAllFoldableHexominoes)) {
+  console.warn('Würfelnetze: Selbsttest fehlgeschlagen', VERIFY);
+}
+function netNumberOf(cells) { const c = canon(cells); return NET_CANON.indexOf(c) + 1; }
+
+/* ================= Hilfen ================= */
+const $ = s => document.querySelector(s);
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const ease = u => u < 0.5 ? 4*u*u*u : 1 - Math.pow(-2*u + 2, 3) / 2;
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function rgbStr(c, k, white) { const w = white || 0;
+  return 'rgb(' + c.map(v => Math.round(clamp((v * (1 - w) + 255 * w) * k, 0, 255))).join(',') + ')'; }
+const PIPS = {
+  1: [[.5,.5]], 2: [[.27,.27],[.73,.73]], 3: [[.27,.27],[.5,.5],[.73,.73]],
+  4: [[.27,.27],[.73,.27],[.27,.73],[.73,.73]], 5: [[.27,.27],[.73,.27],[.5,.5],[.27,.73],[.73,.73]],
+  6: [[.27,.25],[.73,.25],[.27,.5],[.73,.5],[.27,.75],[.73,.75]]
+};
+
+/* ================= Der 3D-Betrachter (Canvas, eigene Projektion) ================= */
+class Viewer {
+  constructor(canvas, opts) {
+    this.cv = canvas; this.ctx = canvas.getContext('2d');
+    this.defYaw = (opts && opts.yaw !== undefined) ? opts.yaw : 28;
+    this.defPitch = (opts && opts.pitch !== undefined) ? opts.pitch : 22;
+    this.yaw = this.defYaw; this.pitch = this.defPitch;
+    this.pips = false; this.labels = new Map(); this.highlight = new Map();
+    this.translucent = 0; this.showCollisions = true;
+    this.tree = null; this.angles = []; this.tween = null; this.raf = 0;
+    this.onChange = null; this.onTap = null; this.dragEnabled = true; this.items = [];
+    this.w = 0; this.h = 0; this.dpr = 1;
+    this.bindPointer();
+    if ('ResizeObserver' in window) new ResizeObserver(() => this.resize()).observe(canvas);
+    window.addEventListener('resize', () => this.resize());
+  }
+  setNet(cells) {
+    this.stop();
+    this.tree = buildTree(cells);
+    this.fold = analyzeFold(this.tree);
+    this.angles = Array(this.tree.n).fill(0);
+    this.box = bbox(cells);
+    this.pipVals = null;
+    if (this.fold.ok) {
+      const pos = this.fold.pos, root = this.tree.root, vals = Array(6).fill(0);
+      const pairs = [[1, 6], [2, 5], [3, 4]];
+      const rootAxis = pos[root].search(/[+-]/);
+      const axes = [rootAxis, ...[0, 1, 2].filter(a => a !== rootAxis)];
+      axes.forEach((ax, pi) => {
+        for (let i = 0; i < 6; i++) if (pos[i][ax] !== '0') {
+          const isRootSide = pos[i][ax] === pos[root][ax];
+          const first = pi === 0 ? isRootSide : pos[i][ax] === '+';
+          vals[i] = first ? pairs[pi][0] : pairs[pi][1];
+        }
+      });
+      this.pipVals = vals;
+    }
+    this.draw();
+  }
+  resize() {
+    const r = this.cv.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    const W = Math.round(r.width * dpr), H = Math.round(r.height * dpr);
+    if (W !== this.cv.width || H !== this.cv.height) { this.cv.width = W; this.cv.height = H; }
+    this.w = r.width; this.h = r.height; this.dpr = dpr;
+    this.draw();
+  }
+  progress() {
+    if (!this.tree || this.tree.n < 2) return 0;
+    let s = 0; for (let i = 0; i < this.tree.n; i++) if (i !== this.tree.root) s += this.angles[i];
+    return s / ((this.tree.n - 1) * HALF_PI);
+  }
+  setProgress(p) { this.stop(); for (let i = 0; i < this.tree.n; i++) this.angles[i] = i === this.tree.root ? 0 : p * HALF_PI; this.draw(); this.changed(); }
+  anglesFor(p) { return this.angles.map((_, i) => i === this.tree.root ? 0 : p * HALF_PI); }
+  changed() { if (this.onChange) this.onChange(this); }
+  tweenTo(to, dur, done) {
+    this.stop();
+    this.tween = { t0: null, dur: Math.max(1, dur), from: { angles: this.angles.slice(), yaw: this.yaw, pitch: this.pitch }, to, done };
+    const step = ts => {
+      this.raf = 0;
+      const tw = this.tween; if (!tw) return;
+      if (tw.t0 === null) tw.t0 = ts;
+      const u = Math.min(1, (ts - tw.t0) / tw.dur), e = ease(u);
+      if (tw.to.angles) for (let i = 0; i < this.angles.length; i++) this.angles[i] = lerp(tw.from.angles[i], tw.to.angles[i], e);
+      if (tw.to.yaw !== undefined) this.yaw = lerp(tw.from.yaw, tw.to.yaw, e);
+      if (tw.to.pitch !== undefined) this.pitch = lerp(tw.from.pitch, tw.to.pitch, e);
+      this.draw(); this.changed();
+      if (u < 1) this.raf = requestAnimationFrame(step);
+      else { this.tween = null; if (tw.done) tw.done(); }
+    };
+    this.raf = requestAnimationFrame(step);
+  }
+  stop() { this.tween = null; if (this.raf) { cancelAnimationFrame(this.raf); this.raf = 0; } }
+  bindPointer() {
+    const cv = this.cv; let down = null;
+    cv.addEventListener('pointerdown', e => {
+      down = { x: e.clientX, y: e.clientY, yaw: this.yaw, pitch: this.pitch, moved: false, id: e.pointerId };
+      try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+      e.preventDefault();
+    });
+    cv.addEventListener('pointermove', e => {
+      if (!down || e.pointerId !== down.id) return;
+      const dx = e.clientX - down.x, dy = e.clientY - down.y;
+      if (!down.moved && Math.abs(dx) + Math.abs(dy) > 7) { down.moved = true; cv.classList.add('dragging');
+        if (this.tween) { delete this.tween.to.yaw; delete this.tween.to.pitch; } }
+      if (down.moved && this.dragEnabled) {
+        this.yaw = down.yaw - dx * 0.5;
+        this.pitch = clamp(down.pitch + dy * 0.5, -88, 88);
+        if (!this.tween) this.draw();
+      }
+    });
+    const up = e => {
+      if (!down || e.pointerId !== down.id) return;
+      cv.classList.remove('dragging');
+      if (!down.moved && e.type === 'pointerup' && this.onTap) {
+        const r = cv.getBoundingClientRect(); const f = this.hit(e.clientX - r.left, e.clientY - r.top);
+        if (f >= 0) this.onTap(f);
+      }
+      down = null;
+    };
+    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  }
+  hit(x, y) {
+    for (let k = this.items.length - 1; k >= 0; k--) {
+      const p = this.items[k].p2; let inside = false;
+      for (let a = 0, b = p.length - 1; a < p.length; b = a++) {
+        if (((p[a][1] > y) !== (p[b][1] > y)) && (x < (p[b][0] - p[a][0]) * (y - p[a][1]) / (p[b][1] - p[a][1]) + p[a][0])) inside = !inside;
+      }
+      if (inside) return this.items[k].i;
+    }
+    return -1;
+  }
+  draw() {
+    const ctx = this.ctx, tr = this.tree;
+    if (!tr || !this.w) return;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.clearRect(0, 0, this.w, this.h);
+    const W = worldMats(tr, this.angles);
+    const p = clamp(this.progress(), 0, 1), ep = ease(p);
+    // Mittelpunkt (wandert von Netzmitte zur Würfelmitte)
+    let cx = 0, cy = 0, cz = 0;
+    for (const A of W) { const c = ap(A, [.5, .5, 0]); cx += c[0]; cy += c[1]; cz += c[2]; }
+    cx /= tr.n; cy /= tr.n; cz /= tr.n;
+    cx = lerp(this.box.w / 2, cx, ep); cy = lerp(this.box.h / 2, cy, ep); cz = lerp(0, cz, ep);
+    const flatView = Math.abs(this.yaw) < 1 && Math.abs(this.pitch) < 1 ? 0.92 : 0.8;
+    const sNet = flatView * Math.min(this.w / (this.box.w + 0.6), this.h / (this.box.h + 0.6));
+    const sCube = Math.min(this.w, this.h) / 2.5;
+    const s = lerp(sNet, Math.min(sCube, sNet * 2.2), ep);
+    const R = mul(Rot(1, 0, 0, this.pitch * Math.PI / 180), Rot(0, 1, 0, this.yaw * Math.PI / 180)).r;
+    const F = 6.5, ox = this.w / 2, oy = this.h / 2;
+    const view = q => apR(R, [q[0] - cx, q[1] - cy, q[2] - cz]);
+    const proj = v => { const k = F / (F + v[2]); return [ox + v[0] * s * k, oy + v[1] * s * k, k]; };
+    const LIGHT = (() => { const l = [-0.45, -0.75, -0.85], m = Math.hypot(...l); return l.map(v => v / m); })();
+    const collide = new Set();
+    if (this.showCollisions && p > 0.97) for (const g of this.fold.collisions) for (const i of g) collide.add(i);
+    const items = [];
+    for (let i = 0; i < tr.n; i++) {
+      const A = W[i];
+      const v3 = [[0,0,0],[1,0,0],[1,1,0],[0,1,0]].map(c => view(ap(A, c)));
+      const p2 = v3.map(proj);
+      let area = 0; for (let a = 0; a < 4; a++) { const b = (a + 1) % 4; area += p2[a][0] * p2[b][1] - p2[b][0] * p2[a][1]; }
+      const outer = area > 0;
+      const nOut = apR(R, apR(A.r, [0, 0, -1]));
+      const nVis = outer ? nOut : nOut.map(v => -v);
+      const lam = Math.max(0, nVis[0]*LIGHT[0] + nVis[1]*LIGHT[1] + nVis[2]*LIGHT[2]);
+      const depth = (v3[0][2] + v3[1][2] + v3[2][2] + v3[3][2]) / 4 + (collide.has(i) ? i * 1e-4 : 0);
+      items.push({ i, A, p2, outer, lam, depth });
+    }
+    items.sort((a, b) => b.depth - a.depth);
+    this.items = items;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    const dark = DARK.matches;
+    // Weicher Bodenschatten: Grundriss aller Flächen auf eine Ebene unter dem Objekt projiziert
+    {
+      let yFloor = -Infinity;
+      const vs = items.map(it => [[0,0,0],[1,0,0],[1,1,0],[0,1,0]].map(c => view(ap(it.A, c))));
+      for (const q of vs) for (const v of q) yFloor = Math.max(yFloor, v[1]);
+      yFloor += 0.3;
+      const OFF = 10000;
+      ctx.save();
+      ctx.beginPath();
+      for (const q of vs) q.forEach((v, a) => { const pp = proj([v[0], yFloor, v[2]]); a ? ctx.lineTo(pp[0] - OFF, pp[1]) : ctx.moveTo(pp[0] - OFF, pp[1]); });
+      ctx.shadowColor = dark ? 'rgba(0,0,0,' + (0.35 + 0.25 * ep) + ')' : 'rgba(30,40,80,' + (0.10 + 0.14 * ep) + ')';
+      ctx.shadowBlur = (14 + 16 * ep) * this.dpr;
+      ctx.shadowOffsetX = OFF * this.dpr; ctx.shadowOffsetY = 4 * this.dpr;
+      ctx.fillStyle = '#000'; ctx.fill('nonzero');
+      ctx.restore();
+      // weiche Kontakt-Ellipse unter dem (gefalteten) Würfel
+      if (ep > 0.02) {
+        let minX = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const it of items) for (const q of it.p2) { minX = Math.min(minX, q[0]); maxX = Math.max(maxX, q[0]); maxY = Math.max(maxY, q[1]); }
+        const ex0 = (minX + maxX) / 2, ey0 = maxY + 10 + 8 * ep, rx = (maxX - minX) * 0.48, ry = Math.max(6, rx * 0.16);
+        ctx.save(); ctx.translate(ex0, ey0); ctx.scale(1, ry / rx);
+        const rg = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+        const a0 = (dark ? 0.55 : 0.22) * ep;
+        rg.addColorStop(0, 'rgba(20,24,40,' + a0 + ')'); rg.addColorStop(0.55, 'rgba(20,24,40,' + a0 * 0.45 + ')'); rg.addColorStop(1, 'rgba(20,24,40,0)');
+        ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      }
+    }
+    const path = it => { ctx.beginPath(); it.p2.forEach((q, a) => a ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.closePath(); };
+    for (const it of items) {
+      const col = hexRgb(COLORS[it.i % COLORS.length]);
+      const k = 0.74 + 0.26 * it.lam;
+      ctx.globalAlpha = collide.has(it.i) ? 0.82 : (this.translucent && p > 0.5 ? 1 - this.translucent * (p - 0.5) * 2 : 1);
+      path(it);
+      const g = ctx.createLinearGradient(it.p2[0][0], it.p2[0][1], it.p2[2][0], it.p2[2][1]);
+      if (it.outer) { g.addColorStop(0, rgbStr(col, Math.min(1.12, k * 1.08), 0.06)); g.addColorStop(1, rgbStr(col, k * 0.93)); }
+      else { g.addColorStop(0, rgbStr(col, k * 0.95, 0.45)); g.addColorStop(1, rgbStr(col, k * 0.86, 0.38)); }
+      ctx.fillStyle = g; ctx.fill();
+      // feine Kanten: dunkle Haarlinie außen, helle Lichtkante innen
+      ctx.strokeStyle = dark ? 'rgba(0,0,0,.45)' : 'rgba(0,0,0,.14)'; ctx.lineWidth = 2.4; ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,' + (it.outer ? 0.7 : 0.5) + ')'; ctx.lineWidth = 1.1; ctx.stroke();
+      // Augenzahlen
+      if (this.pips && this.pipVals && it.outer) {
+        const pr = 0.085, pts = PIPS[this.pipVals[it.i]];
+        ctx.fillStyle = 'rgba(255,255,255,.97)'; ctx.strokeStyle = 'rgba(0,0,0,.22)'; ctx.lineWidth = 1;
+        for (const [u, v] of pts) {
+          ctx.beginPath();
+          for (let a = 0; a < 20; a++) {
+            const t = a / 20 * Math.PI * 2;
+            const q = proj(view(ap(it.A, [u + pr * Math.cos(t), v + pr * Math.sin(t), -0.002])));
+            a ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]);
+          }
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+        }
+      }
+      const hl = this.highlight.get(it.i) || (collide.has(it.i) ? '#FF3B30' : null);
+      if (hl) {
+        ctx.save(); ctx.globalAlpha = 1; path(it);
+        ctx.strokeStyle = hl; ctx.lineWidth = 4.5;
+        if (collide.has(it.i)) ctx.setLineDash([9, 7]);
+        ctx.stroke(); ctx.restore();
+      }
+      const lab = this.labels.get(it.i);
+      if (lab && (it.outer || this.translucent)) {
+        const c = proj(view(ap(it.A, [.5, .5, -0.003])));
+        ctx.globalAlpha = 1;
+        const fs = Math.max(16, s * c[2] * 0.48);
+        ctx.font = '700 ' + fs + 'px ' + CANVAS_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 6 * this.dpr; ctx.shadowOffsetY = 1.5 * this.dpr;
+        ctx.fillStyle = '#fff'; ctx.fillText(lab, c[0], c[1] + fs * 0.04);
+        ctx.restore();
+      }
+    }
+    ctx.globalAlpha = 1;
+    // Hinweis bei Überlappung
+    if (collide.size) {
+      const txt = L.overlap;
+      ctx.font = '600 15px ' + CANVAS_FONT;
+      const tw = ctx.measureText(txt).width + 30;
+      const x = (this.w - tw) / 2, y = 14;
+      ctx.save();
+      ctx.shadowColor = 'rgba(255,59,48,.35)'; ctx.shadowBlur = 14 * this.dpr; ctx.shadowOffsetY = 4 * this.dpr;
+      ctx.fillStyle = '#FF3B30';
+      roundRect(ctx, x, y, tw, 34, 17); ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(txt, x + tw / 2, y + 17.5);
+    }
+  }
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r); ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r); ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r); ctx.closePath();
+}
+
+/* ================= Sprachen (Deutsch / English) ================= */
+const I18N = {
+  de: {
+    htmlLang: 'de',
+    docTitle: 'Würfelnetze – Falten in 3D',
+    title: 'Würfelnetze\u00a0– Falten in\u00a03D',
+    subtitle: 'Klapp die Netze zusammen und entdecke den Würfel!',
+    tabsAria: 'Bereiche', tabExplore: 'Entdecken', tabQuiz: 'Quiz', tabOpp: 'Gegenüber',
+    cvExploreAria: '3D-Ansicht des Würfelnetzes', cvQuizAria: 'Quiz-Netz', cvOppAria: 'Netz für die Gegenüber-Aufgabe',
+    dragHint: 'Ziehen zum Drehen', foldLabel: 'Falten', sliderAria: 'Faltgrad in Prozent',
+    btnFold: 'Falten ▶', btnUnfold: 'Aufklappen', btnStep: 'Schritt für Schritt', pips: 'Augenzahlen', btnView: 'Ansicht zurücksetzen',
+    tilesTitle: 'Alle 11 Würfelnetze', tilesSub: 'Tippe auf ein Netz, um es in 3D zu falten.',
+    legend: '<b>1–6:</b> Typ 1-4-1 &nbsp;·&nbsp; <b>7–9:</b> Typ 2-3-1 &nbsp;·&nbsp; <b>10:</b> Typ 2-2-2 &nbsp;·&nbsp; <b>11:</b> Typ 3-3<br>Mit „Augenzahlen“ siehst du einen echten Spielwürfel: Gegenüberliegende Seiten ergeben zusammen immer 7.',
+    netTitle: n => 'Würfelnetz ' + n, type: t => 'Typ ' + t, tileName: n => 'Netz ' + n, tileAria: (n, t) => 'Würfelnetz ' + n + ', Typ ' + t,
+    colors: ['rote', 'blaue', 'gelbe', 'grüne', 'orange', 'lila'],
+    face: (i, cap) => (cap ? 'Die ' : 'die ') + I18N.de.colors[i] + ' Fläche',
+    infoStart: 'Schieb den Regler oder drück auf „Falten ▶“.',
+    infoAll: 'Alle Flächen klappen gleichzeitig.',
+    infoAllUp: 'Alle Flächen klappen gleichzeitig hoch …',
+    infoDone: 'Fertig! Aus dem Netz ist ein Würfel geworden.',
+    infoDoneTurn: 'Fertig! Aus dem Netz ist ein Würfel geworden. Dreh ihn mit dem Finger!',
+    infoUnfolding: 'Der Würfel klappt wieder auf.',
+    infoFlat: 'Wieder flach – das ist das Würfelnetz.',
+    infoReset: 'Wieder aufgeklappt. Drück nochmal für Schritt 1!',
+    step: (k, n, f) => 'Schritt ' + k + ' von ' + n + ': ' + f + ' klappt an ihrer Kante um.',
+    stepStay: f => ' (' + f + ' bleibt liegen.)',
+    stepDone: n => 'Schritt ' + n + ' von ' + n + ': Geschafft – der Würfel ist zu!',
+    score: (s, t) => 'Punkte: ' + s + ' von ' + t,
+    streak: n => n + ' richtig hintereinander',
+    quizTitle: 'Ist das ein Würfelnetz?',
+    quizTask: 'Schau genau hin: Kann man diese 6 Quadrate zu einem Würfel falten?',
+    quizYes: '✔ Ist ein Würfelnetz', quizNo: '✘ Kein Würfelnetz', quizNext: 'Nächstes Netz →', foldAgain: 'Nochmal falten',
+    praise: ['Super gemacht!', 'Klasse, richtig!', 'Wow, du bist ein Würfel-Profi!', 'Spitze! Genau so ist es!', 'Toll erkannt!', 'Richtig! Du hast ein super Raumgefühl!', 'Bravo – stark gedacht!', 'Juhu, richtig!'],
+    comfort: ['Fast! Schau mal, was beim Falten passiert.', 'Nicht ganz – aber gleich siehst du, warum.', 'Gute Idee! Hier lohnt sich ein zweiter Blick.', 'Knapp daneben – beim nächsten klappt es bestimmt!'],
+    quizIsNet: (nr, ty) => 'Das ist ein Würfelnetz – genauer gesagt Würfelnetz ' + nr + ' (Typ ' + ty + '), nur vielleicht gedreht oder gespiegelt. Schau, wie es sich faltet:',
+    quizNoNet: 'Das ist kein Würfelnetz. Pass auf, was beim Falten passiert:',
+    quizSeeOverlap: (a, b) => 'Siehst du? ' + a + ' und ' + b + ' landen aufeinander – dafür bleibt eine Würfelseite offen.',
+    quizSeeCube: 'Siehst du? Jede Würfelseite ist genau einmal da – ein ganzer Würfel!',
+    overlap: 'Hier überlappen sich zwei Flächen!',
+    oppTitle: 'Welche Fläche liegt gegenüber?',
+    oppTask: 'Tippe auf die Fläche, die beim fertigen Würfel <b>gegenüber vom ★</b> liegt.',
+    oppNext: 'Nächste Aufgabe →', tip: 'Tipp', tapFace: 'Tippe auf eine Fläche',
+    oppSelfTitle: 'Das ist ja der Stern selbst!', oppSelf: 'Tippe auf die Fläche, die ihm gegenüber liegt.',
+    oppResult: f => 'Gegenüber vom Stern liegt ' + f + ' (✔).',
+    oppNeighbour: ' Deine Fläche berührt den Stern im Netz – sie ist sein Nachbar, nicht sein Gegenüber.',
+    oppWatch: ' Beim Falten siehst du es – der Würfel wird dafür etwas durchsichtig.',
+    tipTitle: 'Tipp',
+    tipText: 'Gegenüberliegende Flächen berühren sich im Netz nie – nicht mal an einer Kante. Liegen drei Flächen in einer Reihe, dann liegen die beiden äußeren einander gegenüber.',
+    footer: 'Ein Würfel hat 6 Flächen – und es gibt genau 11 verschiedene Würfelnetze.'
+  },
+  en: {
+    htmlLang: 'en',
+    docTitle: 'Cube Nets – Fold in 3D',
+    title: 'Cube Nets\u00a0– Fold in\u00a03D',
+    subtitle: 'Fold the nets up and discover the cube!',
+    tabsAria: 'Sections', tabExplore: 'Explore', tabQuiz: 'Quiz', tabOpp: 'Opposite',
+    cvExploreAria: '3D view of the cube net', cvQuizAria: 'Quiz net', cvOppAria: 'Net for the opposite face task',
+    dragHint: 'Drag to turn', foldLabel: 'Fold', sliderAria: 'How far the net is folded, in percent',
+    btnFold: 'Fold ▶', btnUnfold: 'Unfold', btnStep: 'Step by step', pips: 'Dots', btnView: 'Reset view',
+    tilesTitle: 'All 11 cube nets', tilesSub: 'Tap a net to fold it in 3D.',
+    legend: '<b>1–6:</b> type 1-4-1 &nbsp;·&nbsp; <b>7–9:</b> type 2-3-1 &nbsp;·&nbsp; <b>10:</b> type 2-2-2 &nbsp;·&nbsp; <b>11:</b> type 3-3<br>Switch on “Dots” to see a real dice: the dots on opposite faces always add up to 7.',
+    netTitle: n => 'Cube net ' + n, type: t => 'Type ' + t, tileName: n => 'Net ' + n, tileAria: (n, t) => 'Cube net ' + n + ', type ' + t,
+    colors: ['red', 'blue', 'yellow', 'green', 'orange', 'purple'],
+    face: (i, cap) => (cap ? 'The ' : 'the ') + I18N.en.colors[i] + ' face',
+    infoStart: 'Move the slider or press “Fold ▶”.',
+    infoAll: 'All the faces fold at the same time.',
+    infoAllUp: 'All the faces fold up together …',
+    infoDone: 'Done! The net has turned into a cube.',
+    infoDoneTurn: 'Done! The net has turned into a cube. Turn it with your finger!',
+    infoUnfolding: 'The cube is unfolding again.',
+    infoFlat: 'Flat again – this is the cube net.',
+    infoReset: 'Unfolded again. Press once more for step 1!',
+    step: (k, n, f) => 'Step ' + k + ' of ' + n + ': ' + f + ' folds up along its edge.',
+    stepStay: f => ' (' + f + ' stays flat.)',
+    stepDone: n => 'Step ' + n + ' of ' + n + ': You did it – the cube is closed!',
+    score: (s, t) => 'Points: ' + s + ' of ' + t,
+    streak: n => n + ' right in a row',
+    quizTitle: 'Is this a cube net?',
+    quizTask: 'Look carefully: can these 6 squares be folded into a cube?',
+    quizYes: '✔ It’s a cube net', quizNo: '✘ Not a cube net', quizNext: 'Next net →', foldAgain: 'Fold again',
+    praise: ['Great job!', 'Brilliant, that’s right!', 'Wow, you’re a cube expert!', 'Super! That’s exactly right!', 'Well spotted!', 'Correct! You can really picture shapes in 3D!', 'Bravo – great thinking!', 'Yay, you got it!'],
+    comfort: ['Almost! Watch what happens when it folds.', 'Not quite – but in a moment you’ll see why.', 'Good idea! This one is worth a second look.', 'So close – you’ll get the next one!'],
+    quizIsNet: (nr, ty) => 'This is a cube net – it’s cube net ' + nr + ' (type ' + ty + '), maybe turned or flipped over. Watch how it folds:',
+    quizNoNet: 'This is not a cube net. Watch what happens when it folds:',
+    quizSeeOverlap: (a, b) => 'See? ' + a + ' and ' + b + ' land on top of each other – so one side of the cube is left open.',
+    quizSeeCube: 'See? Every side of the cube is there exactly once – a whole cube!',
+    overlap: 'Two faces overlap here!',
+    oppTitle: 'Which face is opposite?',
+    oppTask: 'Tap the face that will be <b>opposite the ★</b> on the finished cube.',
+    oppNext: 'Next one →', tip: 'Hint', tapFace: 'Tap a face',
+    oppSelfTitle: 'That’s the star face itself!', oppSelf: 'Tap the face that is opposite it.',
+    oppResult: f => 'The opposite face is ' + f + ' (✔).',
+    oppNeighbour: ' Your face touches the star in the net – it’s a neighbour, not the opposite face.',
+    oppWatch: ' Watch it fold – the cube turns a little see-through so you can check.',
+    tipTitle: 'Hint',
+    tipText: 'Opposite faces never touch in the net – not even at an edge. If three faces are in a row, the two outer ones are opposite each other.',
+    footer: 'A cube has 6 faces – and there are exactly 11 different cube nets.'
+  }
+};
+const LANG_KEY = 'wuerfelnetze-sprache';
+let lang = 'de';
+try { const s = localStorage.getItem(LANG_KEY); if (s === 'de' || s === 'en') lang = s; } catch (_) {}
+let L = I18N[lang];
+function faceHtml(i, cap) { return dot(i) + L.face(i, cap); }
+
+/* ================= Entdecken ================= */
+const ex = new Viewer($('#cvExplore'));
+const slider = $('#fold'), foldOut = $('#foldOut'), stepInfo = $('#stepInfo');
+let current = 0, stepK = 0, infoFn = () => L.infoStart;
+function setInfo(fn) { infoFn = fn; stepInfo.innerHTML = infoFn(); }
+function dot(i) { return '<span class="dot" style="background:' + COLORS[i] + '"></span>'; }
+function updateSlider() {
+  const v = Math.round(ex.progress() * 100);
+  slider.value = v; slider.style.setProperty('--p', v + '%'); foldOut.textContent = v + ' %';
+}
+ex.onChange = updateSlider;
+function renderNetHead() {
+  $('#netTitle').textContent = L.netTitle(current + 1);
+  $('#netType').textContent = L.type(NETS[current].type);
+}
+function selectNet(i) {
+  current = i; stepK = 0;
+  ex.setNet(NETS[i].cells);
+  renderNetHead();
+  document.querySelectorAll('.tile').forEach((t, k) => t.setAttribute('aria-pressed', k === i ? 'true' : 'false'));
+  updateSlider();
+  setInfo(() => L.infoStart);
+}
+function buildTiles() {
+  const box = $('#tiles');
+  NETS.forEach((net, i) => {
+    const b = document.createElement('button'); b.className = 'tile'; b.type = 'button';
+    const bb = bbox(net.cells); const mini = document.createElement('div'); mini.className = 'mini';
+    mini.setAttribute('aria-hidden', 'true');
+    const c = Math.min(13, Math.floor(70 / Math.max(bb.w, bb.h + 0.5)));
+    mini.style.setProperty('--c', c + 'px');
+    mini.style.gridTemplateColumns = 'repeat(' + bb.w + ', var(--c))';
+    mini.style.gridTemplateRows = 'repeat(' + bb.h + ', var(--c))';
+    net.cells.forEach(([x, y], k) => { const e = document.createElement('i'); e.style.gridColumn = (x + 1); e.style.gridRow = (y + 1); e.style.background = COLORS[k]; mini.appendChild(e); });
+    b.appendChild(mini);
+    b.insertAdjacentHTML('beforeend', '<b></b><small>' + net.type + '</small>');
+    b.addEventListener('click', () => selectNet(i));
+    box.appendChild(b);
+  });
+  renderTiles();
+}
+function renderTiles() {
+  document.querySelectorAll('.tile').forEach((b, i) => {
+    b.querySelector('b').textContent = L.tileName(i + 1);
+    b.setAttribute('aria-label', L.tileAria(i + 1, NETS[i].type));
+  });
+}
+slider.addEventListener('input', () => {
+  ex.setProgress(slider.value / 100); stepK = 0;
+  slider.style.setProperty('--p', slider.value + '%'); foldOut.textContent = slider.value + ' %';
+  setInfo(slider.value >= 100 ? () => L.infoDone : () => L.infoAll);
+});
+$('#bFold').addEventListener('click', () => {
+  const p = ex.progress(); stepK = 0;
+  setInfo(() => L.infoAllUp);
+  ex.tweenTo({ angles: ex.anglesFor(1) }, 2000 * Math.max(0.3, 1 - p), () => setInfo(() => L.infoDoneTurn));
+});
+$('#bUnfold').addEventListener('click', () => {
+  stepK = 0; setInfo(() => L.infoUnfolding);
+  ex.tweenTo({ angles: ex.anglesFor(0) }, 1300 * Math.max(0.3, ex.progress()), () => setInfo(() => L.infoFlat));
+});
+$('#bStep').addEventListener('click', () => {
+  const tr = ex.tree, total = tr.n - 1;
+  if (stepK >= total || ex.progress() > 0.999) {
+    stepK = 0;
+    setInfo(() => L.infoReset);
+    ex.tweenTo({ angles: ex.anglesFor(0) }, 700);
+    return;
+  }
+  stepK++;
+  const k = stepK, target = ex.angles.map(() => 0);
+  for (let j = 1; j <= k; j++) target[tr.order[j]] = HALF_PI;
+  const face = tr.order[k], root = tr.root;
+  setInfo(() => L.step(k, total, faceHtml(face, true)) + (k === 1 ? L.stepStay(faceHtml(root, true)) : ''));
+  ex.tweenTo({ angles: target }, 850, () => { if (stepK === total && k === total) setInfo(() => L.stepDone(total)); });
+});
+$('#tPips').addEventListener('change', e => { ex.pips = e.target.checked; ex.draw(); });
+$('#bView').addEventListener('click', () => ex.tweenTo({ yaw: ex.defYaw, pitch: ex.defPitch }, 600));
+
+/* ================= Punkte ================= */
+function renderScore(prefix, st, pop) {
+  $('#' + prefix + 'Score').textContent = L.score(st.score, st.total);
+  const s = $('#' + prefix + 'Streak');
+  if (st.streak >= 2) {
+    s.hidden = false; s.textContent = L.streak(st.streak) + ' ' + '★'.repeat(Math.min(st.streak, 5));
+    if (pop) { s.classList.remove('pop'); void s.offsetWidth; s.classList.add('pop'); }
+  } else s.hidden = true;
+}
+// Feedback-Kasten, der beim Sprachwechsel neu aufgebaut wird
+function renderFb(el, st, pop) {
+  if (!st.fbMain) { el.hidden = true; return; }
+  el.hidden = false;
+  el.className = 'feedback ' + st.fbClass + (pop ? ' pop' : '');
+  el.innerHTML = st.fbMain() + (st.fbExtra ? '<div class="' + (pop === 'extra' ? 'pop' : '') + '" style="margin-top:6px">' + st.fbExtra() + '</div>' : '');
+}
+const rnd = n => Math.floor(Math.random() * n);
+
+/* ================= Quiz ================= */
+const qv = new Viewer($('#cvQuiz'), { yaw: 0, pitch: 0 });
+const quiz = { score: 0, total: 0, streak: 0, isNet: false, answered: false, lastIdx: -1, history: [], fbMain: null, fbExtra: null, fbClass: '' };
+function randomOrientation(cells) { return transform(cells, pick(SYMS)); }
+function newQuestion(forceNet, forceIdx) {
+  let isNet = forceNet !== undefined ? forceNet : Math.random() < 0.5;
+  const h = quiz.history; if (forceNet === undefined && h.length >= 2 && h[h.length - 1] === isNet && h[h.length - 2] === isNet) isNet = !isNet;
+  h.push(isNet);
+  let cells;
+  if (isNet) { const i = forceIdx !== undefined ? forceIdx : rnd(11); cells = NETS[i].cells; }
+  else { let i = forceIdx !== undefined ? forceIdx : rnd(NON_NETS.length); if (forceIdx === undefined && i === quiz.lastIdx) i = (i + 1) % NON_NETS.length; quiz.lastIdx = i; cells = NON_NETS[i]; }
+  cells = forceIdx !== undefined ? normalize(cells) : randomOrientation(cells);
+  quiz.isNet = isNet; quiz.answered = false; quiz.cells = cells;
+  quiz.fbMain = null; quiz.fbExtra = null;
+  qv.yaw = 0; qv.pitch = 0; qv.setNet(cells);
+  $('#qYes').disabled = false; $('#qNo').disabled = false;
+  $('#qYes').classList.remove('chosen'); $('#qNo').classList.remove('chosen');
+  renderFb($('#qFb'), quiz); $('#qNext').hidden = true; $('#qAgain').hidden = true;
+}
+function quizFold() {
+  qv.angles = qv.anglesFor(0); qv.yaw = 0; qv.pitch = 0; qv.draw();
+  let yaw = 28, pitch = 24;
+  if (!quiz.isNet && qv.fold.collisions.length) {
+    const k = qv.fold.pos[qv.fold.collisions[0][0]];
+    if (k[0] === '+') yaw = 40; else if (k[0] === '-') yaw = -40; else if (k[2] === '+') yaw = 208;
+    if (k[1] === '+') pitch = -32; else if (k[1] === '-') pitch = 32;
+  }
+  qv.tweenTo({ angles: qv.anglesFor(1), yaw, pitch }, 2200, () => {
+    $('#qAgain').hidden = false;
+    if (quiz.fbExtra) return;
+    if (!quiz.isNet && qv.fold.collisions.length) {
+      const g = qv.fold.collisions[0];
+      quiz.fbExtra = () => L.quizSeeOverlap(faceHtml(g[0], true), faceHtml(g[1], false));
+    } else if (quiz.isNet) quiz.fbExtra = () => L.quizSeeCube;
+    renderFb($('#qFb'), quiz, 'extra');
+  });
+}
+function answer(sayNet) {
+  if (quiz.answered) return;
+  quiz.answered = true; quiz.total++;
+  const right = sayNet === quiz.isNet;
+  if (right) { quiz.score++; quiz.streak++; } else quiz.streak = 0;
+  renderScore('q', quiz, true);
+  $('#qYes').disabled = true; $('#qNo').disabled = true;
+  (sayNet ? $('#qYes') : $('#qNo')).classList.add('chosen');
+  const pi = rnd(8), nr = netNumberOf(quiz.cells), isNet = quiz.isNet;
+  quiz.fbClass = right ? 'ok' : 'bad';
+  quiz.fbMain = () => '<strong>' + (right ? L.praise[pi % L.praise.length] : L.comfort[pi % L.comfort.length]) + '</strong>' +
+    (isNet ? L.quizIsNet(nr, NETS[nr - 1].type) : L.quizNoNet);
+  quiz.fbExtra = null;
+  renderFb($('#qFb'), quiz, true);
+  $('#qNext').hidden = false;
+  setTimeout(quizFold, 350);
+}
+$('#qYes').addEventListener('click', () => answer(true));
+$('#qNo').addEventListener('click', () => answer(false));
+$('#qNext').addEventListener('click', () => newQuestion());
+$('#qAgain').addEventListener('click', () => { quizFold(); $('#qAgain').hidden = true; });
+
+/* ================= Gegenüber ================= */
+const ov = new Viewer($('#cvOpp'), { yaw: 0, pitch: 0 });
+ov.dragEnabled = false;
+const opp = { score: 0, total: 0, streak: 0, answered: false, marked: 0, target: 0, fbMain: null, fbExtra: null, fbClass: '' };
+function renderOppHint() { $('#oHintBadge').textContent = opp.answered ? L.dragHint : L.tapFace; }
+function newOpp() {
+  const cells = randomOrientation(NETS[rnd(11)].cells);
+  ov.yaw = 0; ov.pitch = 0; ov.translucent = 0; ov.dragEnabled = false;
+  ov.setNet(cells);
+  opp.marked = rnd(6);
+  opp.target = ov.fold.pos.indexOf(oppositeKey(ov.fold.pos[opp.marked]));
+  opp.answered = false; opp.fbMain = null; opp.fbExtra = null;
+  ov.labels = new Map([[opp.marked, '★']]); ov.highlight = new Map(); ov.draw();
+  renderFb($('#oFb'), opp); $('#oNext').hidden = true; $('#oAgain').hidden = true; $('#oTip').hidden = false;
+  renderOppHint();
+}
+function oppFold() {
+  ov.angles = ov.anglesFor(0); ov.yaw = 0; ov.pitch = 0; ov.draw();
+  ov.tweenTo({ angles: ov.anglesFor(1), yaw: 32, pitch: 26 }, 2200, () => { $('#oAgain').hidden = false; });
+}
+ov.onTap = face => {
+  if (opp.answered) return;
+  if (face === opp.marked) {
+    opp.fbClass = 'bad'; opp.fbMain = () => '<strong>' + L.oppSelfTitle + '</strong>' + L.oppSelf; opp.fbExtra = null;
+    renderFb($('#oFb'), opp, true);
+    return;
+  }
+  opp.answered = true; opp.total++;
+  const right = face === opp.target, target = opp.target, pi = rnd(8);
+  const neighbour = !right && ov.tree.adj[opp.marked].includes(face);
+  if (right) { opp.score++; opp.streak++; } else opp.streak = 0;
+  renderScore('o', opp, true);
+  ov.labels = new Map([[opp.marked, '★'], [target, '✔']]);
+  if (!right) ov.labels.set(face, '✘');
+  ov.highlight = new Map([[opp.marked, '#007AFF'], [target, '#34C759']]);
+  if (!right) ov.highlight.set(face, '#FF9500');
+  ov.translucent = 0.45; ov.dragEnabled = true;
+  opp.fbClass = right ? 'ok' : 'bad';
+  opp.fbMain = () => '<strong>' + (right ? L.praise[pi % L.praise.length] : L.comfort[pi % L.comfort.length]) + '</strong>' +
+    L.oppResult(faceHtml(target, false)) + (neighbour ? L.oppNeighbour : '') + L.oppWatch;
+  opp.fbExtra = null;
+  renderFb($('#oFb'), opp, true);
+  $('#oNext').hidden = false; $('#oTip').hidden = true;
+  renderOppHint();
+  ov.draw();
+  setTimeout(oppFold, 350);
+};
+$('#oNext').addEventListener('click', newOpp);
+$('#oAgain').addEventListener('click', () => { oppFold(); $('#oAgain').hidden = true; });
+$('#oTip').addEventListener('click', () => {
+  opp.fbClass = 'ok'; opp.fbMain = () => '<strong>' + L.tipTitle + '</strong>' + L.tipText; opp.fbExtra = null;
+  renderFb($('#oFb'), opp, true);
+});
+
+/* ================= Tabs ================= */
+const VIEWERS = { entdecken: ex, quiz: qv, gegen: ov };
+let quizStarted = false, oppStarted = false;
+function showTab(name) {
+  document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.view === name ? 'true' : 'false'));
+  for (const v of Object.keys(VIEWERS)) $('#view-' + v).hidden = v !== name;
+  if (name === 'quiz' && !quizStarted) { quizStarted = true; newQuestion(); }
+  if (name === 'gegen' && !oppStarted) { oppStarted = true; newOpp(); }
+  VIEWERS[name].resize();
+}
+document.querySelectorAll('nav.tabs button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.view)));
+
+/* ================= Sprache anwenden (ohne Neuladen, Zustand bleibt) ================= */
+function applyLang() {
+  L = I18N[lang];
+  document.documentElement.lang = L.htmlLang;
+  document.title = L.docTitle;
+  document.querySelectorAll('[data-i18n]').forEach(e => { e.textContent = L[e.dataset.i18n]; });
+  document.querySelectorAll('[data-i18n-html]').forEach(e => { e.innerHTML = L[e.dataset.i18nHtml]; });
+  document.querySelectorAll('[data-i18n-aria]').forEach(e => { e.setAttribute('aria-label', L[e.dataset.i18nAria]); });
+  slider.setAttribute('aria-label', L.sliderAria);
+  document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', b.dataset.lang === lang ? 'true' : 'false'));
+  renderNetHead(); renderTiles();
+  stepInfo.innerHTML = infoFn();
+  renderScore('q', quiz); renderScore('o', opp);
+  renderFb($('#qFb'), quiz); renderFb($('#oFb'), opp); renderOppHint();
+  for (const v of Object.values(VIEWERS)) v.draw();
+}
+function setLang(l) {
+  if (l !== 'de' && l !== 'en') return;
+  lang = l;
+  try { localStorage.setItem(LANG_KEY, l); } catch (_) {}
+  applyLang();
+}
+document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+
+/* ================= Start ================= */
+buildTiles();
+selectNet(0);
+if (DARK.addEventListener) DARK.addEventListener('change', () => Object.values(VIEWERS).forEach(v => v.draw()));
+applyLang();
+ex.resize();
+
+// Schnittstelle für automatische Tests (ohne sichtbare Funktion)
+window.WN = { NETS, verifyAll, VERIFY, ex, qv, ov, selectNet, showTab, newQuestion, answer, newOpp, facePositions, NON_NETS, setLang, I18N,
+  getLang: () => lang, currentPositions: v => facePositions(v.tree, v.angles) };
+</script>
+</body>
+</html>
